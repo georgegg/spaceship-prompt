@@ -15,7 +15,7 @@ SPACESHIP_GIT_STATUS_ADDED="${SPACESHIP_GIT_STATUS_ADDED="+"}"
 SPACESHIP_GIT_STATUS_MODIFIED="${SPACESHIP_GIT_STATUS_MODIFIED="!"}"
 SPACESHIP_GIT_STATUS_RENAMED="${SPACESHIP_GIT_STATUS_RENAMED="»"}"
 SPACESHIP_GIT_STATUS_DELETED="${SPACESHIP_GIT_STATUS_DELETED="✘"}"
-SPACESHIP_GIT_STATUS_STASHED="${SPACESHIP_GIT_STATUS_STASHED="$"}"
+SPACESHIP_GIT_STATUS_STASHED="${SPACESHIP_GIT_STATUS_STASHED="*"}"
 SPACESHIP_GIT_STATUS_UNMERGED="${SPACESHIP_GIT_STATUS_UNMERGED="="}"
 SPACESHIP_GIT_STATUS_AHEAD="${SPACESHIP_GIT_STATUS_AHEAD="⇡"}"
 SPACESHIP_GIT_STATUS_BEHIND="${SPACESHIP_GIT_STATUS_BEHIND="⇣"}"
@@ -72,7 +72,8 @@ spaceship_git_status() {
 
   # Check for stashes
   if $(command git rev-parse --verify refs/stash >/dev/null 2>&1); then
-    git_status="$SPACESHIP_GIT_STATUS_STASHED$git_status"
+    stashes=$(command git stash list 2>/dev/null | wc -l)
+    git_status="$SPACESHIP_GIT_STATUS_STASHED${stashes// /}$git_status"
   fi
 
   # Check for unmerged files
@@ -90,20 +91,22 @@ spaceship_git_status() {
   local is_ahead=false
   if $(echo "$INDEX" | command grep '^## [^ ]\+ .*ahead' &> /dev/null); then
     is_ahead=true
+    ahead=$(command git rev-list "${branch_name}"@{upstream}..HEAD 2>/dev/null | wc -l)
   fi
 
   # Check whether branch is behind
   local is_behind=false
   if $(echo "$INDEX" | command grep '^## [^ ]\+ .*behind' &> /dev/null); then
     is_behind=true
+    behind=$(command git rev-list HEAD.."${branch_name}"@{upstream} 2>/dev/null | wc -l)
   fi
 
   # Check wheather branch has diverged
   if [[ "$is_ahead" == true && "$is_behind" == true ]]; then
-    git_status="$SPACESHIP_GIT_STATUS_DIVERGED$git_status"
+    git_status="$SPACESHIP_GIT_STATUS_DIVERGED${ahead// /}${behind// /}$git_status"
   else
-    [[ "$is_ahead" == true ]] && git_status="$SPACESHIP_GIT_STATUS_AHEAD$git_status"
-    [[ "$is_behind" == true ]] && git_status="$SPACESHIP_GIT_STATUS_BEHIND$git_status"
+    [[ "$is_ahead" == true ]] && git_status="$SPACESHIP_GIT_STATUS_AHEAD${ahead// /}$git_status"
+    [[ "$is_behind" == true ]] && git_status="$SPACESHIP_GIT_STATUS_BEHIND${behind// /}$git_status"
   fi
 
   if [[ -n $git_status ]]; then
